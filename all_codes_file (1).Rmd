@@ -1,0 +1,522 @@
+---
+title: "All Codes"
+author: 
+- Rahiq Raees
+- Danish Siddiqui
+- Sauhaard Walia
+- Shaafay Alaman
+- Acash Fernando
+- Aaditya Samant
+date: "2024-04-09"
+output: html_document
+---
+# Table of Contents
+
+### [Data](#dat)
+### [Methodology, Results, and Visualizations](#met)
+* [$\textbf{Expected Goals Model}$](#one)\
+* [$\textbf{Expected Successful Passes Model}$](#two)\
+* [$\textbf{Expected Assisted Goals Model}$](#thr)\
+
+### [Appendix](#app)
+### [Figures](#fig)
+
+The table of contents is linked.
+
+# Data{#dat}
+
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(readr)
+library(knitr)
+library(reshape2)
+library(SBpitch)
+```
+
+```{r,message=FALSE,warning=FALSE}
+library(StatsBombR)
+comp <- FreeCompetitions() %>% filter(competition_name == 'FIFA World Cup' 
+                                      & season_name == 2022) 
+```
+
+```{r}
+matches <- FreeMatches(comp)
+```
+
+```{r,message=FALSE,warning=FALSE}
+main_data <- StatsBombFreeEvents(MatchesDF = matches,Parallel = T)
+main_data = allclean(main_data)
+```
+
+# Methodology, Results, and Visualizations{#met}
+
+### $\textbf{Expected Goals Model}${#one}
+
+#### $\textbf{Logistic Regression}:$
+
+
+```{r,warning=FALSE,message=FALSE}
+training_matches <- FreeMatches(FreeCompetitions() %>% filter(competition_name == 'Premier League' & season_name == '2015/2016'))
+
+training_data <- StatsBombFreeEvents(MatchesDF = training_matches,Parallel = T)
+training_data = allclean(training_data)
+
+temp_data <- training_data %>% filter(DefendersInCone <= 6) %>%  mutate(goal=shot.outcome.name=='Goal') # Outcome variable
+
+my_logit <- glm(data= temp_data,goal ~ shot.type.name + shot.body_part.name +location.x + location.y + DistToGoal + AngleToGoal + factor(DefendersInCone),family=binomial)
+
+summary(my_logit)
+
+```
+
+
+```{r}
+my_logit_2 <- glm(data= temp_data,goal ~ shot.type.name + shot.body_part.name +location.x + location.y + DistToGoal + AngleToGoal + factor(DefendersInCone)+factor(team.name),family=binomial)
+```
+
+
+```{r}
+coef(my_logit)
+coef(my_logit_2)
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+main_data <- main_data %>% filter(DefendersInCone<=6) 
+
+main_data <- main_data %>% mutate(probs = my_logit %>%predict(main_data, type = "response"))
+xg<-main_data %>% filter(minute<120) %>% group_by(team.name) %>% summarise(expected_goals = sum(probs,na.rm=T)) %>% arrange(desc(expected_goals))
+
+
+
+total_goals <- main_data %>% filter(minute<120) %>% group_by(team.name) %>% summarise(total = sum(shot.outcome.name=="Goal", na.rm = TRUE)) %>% arrange(desc(total)) 
+
+table <- merge(total_goals,xg)
+table <- table %>% arrange(desc(total))
+table <- table[1:10,]
+m <- melt(table,id.vars='team.name')
+ggplot(m, aes(x=team.name, y=value, fill=variable)) +geom_bar(stat='identity', position='dodge') + labs(x="Team",y="Value",fill='')
+
+```
+
+#### $\textbf{Heatmaps}:$
+
+```{r,message=FALSE,warning=FALSE}
+
+library(ggplot2)
+library(StatsBombR)
+library(ggsoccer)
+library(ggplot2)
+library(tidyverse)
+library(devtools)
+library(here)
+library(tidyverse)
+library(SBpitch)
+library(readxl)
+library(cowplot)
+
+library(paletteer)
+
+goals <- main_data %>% filter(minute<120,shot.outcome.name == 'Goal' & team.name == 'Portugal')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=goals, aes(x=location.x,y=location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(60, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1)) +
+  labs(title = "Portugal Goals") + coord_flip()
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+goals <- main_data %>% filter(minute<120,shot.outcome.name == 'Goal' & team.name == 'Netherlands')
+
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=goals, aes(x=location.x,y=location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(60, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "Netherland Goals") + coord_flip()
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+goals <- main_data %>% filter(minute<120,shot.outcome.name == 'Goal' & team.name == 'Brazil')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=goals, aes(x=location.x,y=location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(60, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1)) +
+  labs(title = "Brazil Goals") + coord_flip()
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+
+### $\textbf{Expected Successful Passes Model}${#two}
+
+#### $\textbf{Logistic Regression}:$
+
+```{r,message=FALSE,warning=FALSE}
+
+main_data <- StatsBombFreeEvents(MatchesDF = matches,Parallel = T)
+main_data = allclean(main_data)
+
+passes <- main_data %>%
+  filter(type.name == "Pass") %>%
+  select(match_id, team.name, player.name, pass.outcome.name, location, pass.length, pass.angle, pass.height.name) %>%
+  # Because the outcome column only has a value when the pass was unsuccessful
+  mutate(successful_pass = if_else(is.na(pass.outcome.name), TRUE, FALSE))
+
+model <- glm(successful_pass ~ pass.length + pass.angle + pass.height.name, passes, family=binomial)
+summary(model)
+
+```
+
+
+```{r}
+# Removing na's
+passes_complete <- passes %>%
+  filter(!is.na(pass.length) & !is.na(pass.angle) & !is.na(pass.height.name) )
+
+passes_complete <- passes_complete %>%
+  mutate(expected_success = predict(model, newdata = passes_complete, type = "response"))
+
+expected_successful_passes <- passes_complete %>%
+  group_by(team.name) %>%
+  summarise(expected_successful_passes = sum(expected_success))
+```
+
+```{r}
+ggplot(expected_successful_passes, aes(x=reorder(team.name, expected_successful_passes), y=expected_successful_passes, fill=team.name)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  labs(x="Country", y="Expected Successful Passes")
+```
+
+```{r}
+actual_successful_passes <- passes %>%
+  group_by(team.name) %>%
+  summarise(actual_successful_passes = sum(successful_pass)) %>%
+  ungroup() 
+
+actual_minus_expected <- actual_successful_passes %>%
+  inner_join(expected_successful_passes, by = "team.name") %>%
+  mutate(difference = actual_successful_passes - expected_successful_passes) %>%
+  arrange(desc(difference))
+
+kable(head(actual_minus_expected))
+kable(tail(actual_minus_expected))
+```
+
+
+#### $\textbf{Heatmaps}:$
+
+```{r,message=FALSE,warning=FALSE}
+pass_dat <- main_data %>% filter(type.name == 'Pass' & team.name == 'Spain')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(0, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "Spain Successful Passes") 
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+```{r,message=FALSE,warning=FALSE}
+pass_dat <- main_data %>% filter(type.name == 'Pass' & team.name == 'England')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(0, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "England Successful Passes") 
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+pass_dat <- main_data %>% filter(type.name == 'Pass' & team.name == 'Japan')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(0, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "Japan Successful Passes") 
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+```{r,message=FALSE,warning=FALSE}
+pass_dat <- main_data %>% filter(type.name == 'Pass' & team.name == 'Iran')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(0, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "Iran Successful Passes") 
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+
+
+### $\textbf{Expected Assited Goals Model}${#thr}
+
+#### $\textbf{Logistic Regression}:$
+
+```{r,message=F,warning=F}
+wc_events <- main_data %>% 
+  mutate(pass.technique.name = case_when(
+    is.na(pass.technique.name) ~ 'Other',
+    TRUE ~ pass.technique.name
+  ))
+
+events <- training_data %>% 
+  mutate(pass.technique.name = case_when(
+    is.na(pass.technique.name) ~ 'Other',
+    TRUE ~ pass.technique.name
+  ))
+
+pass_events = events %>% 
+  filter(type.name == "Pass")
+
+assist_events = pass_events %>%
+  filter(!is.na(pass.shot_assist)) %>% 
+  select(position.name, contains('pass')) %>% 
+  left_join(events %>% 
+              filter(type.name == "Shot"), by = c("pass.assisted_shot_id" = 'id')) %>% 
+  select(contains('pass'), contains('shot'))
+
+library(betareg)
+pass.glm.2 <- betareg(shot.statsbomb_xg ~ pass.length.x + pass.height.name.x + pass.technique.name.x, data = assist_events)
+
+summary(pass.glm.2)
+```
+
+```{r,message=F,warning=F}
+pass_events_wc = wc_events %>% 
+  filter(type.name == "Pass")
+
+```
+
+```{r,message=F,warning=F}
+assist_events_wc = pass_events_wc %>%
+  filter(!is.na(pass.shot_assist)) 
+```
+
+```{r,message=F,warning=F}
+assist_events_wc <- assist_events_wc %>% 
+  select(position.name, contains('pass')) %>% 
+  left_join(wc_events %>% 
+              filter(type.name == "Shot"), by = c("pass.assisted_shot_id" = 'id')) %>% 
+  select(contains('pass'), contains('shot'))
+
+```
+
+```{r,message=F,warning=F}
+testing_data <- pass_events_wc %>% 
+  rename(pass.length.x = pass.length, pass.height.name.x = pass.height.name, pass.technique.name.x = pass.technique.name) %>% 
+  filter(pass.shot_assist == TRUE | pass.goal_assist == TRUE)
+
+```
+
+```{r,message=F,warning=F}
+xAG = data.frame(xAG = predict(pass.glm.2, newdata = testing_data), row.names = NULL)
+
+```
+
+```{r,message=F,warning=F}
+predictions <- testing_data %>% 
+  select(team.name, pass.goal_assist) %>% 
+  cbind(xAG) %>% 
+  mutate(pass.goal_assist = case_when(is.na(pass.goal_assist) ~ 0, TRUE ~ 1))
+```
+
+```{r,message=F,warning=F}
+final_predictions <- predictions %>% 
+  group_by(team.name) %>% 
+  summarize(total_xAG = sum(xAG), total_assists = sum(pass.goal_assist)) %>% 
+  arrange(desc(total_xAG)) 
+```
+
+
+```{r,message=F,warning=F}
+ggplot(final_predictions, aes(x = total_xAG, y = total_assists, label = team.name)) +
+  geom_point(size = 3, color = "#219ebc") +
+  geom_text(size = 3, hjust = 0, vjust = 1.5) +  # Adjusted vjust to move text below the points
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "#023047") +  # Adding the y=x line
+  labs(title = "Total xAG vs Total Assists by Team",
+       x = "Total xAG",
+       y = "Total Assists")
+
+```
+
+#### $\textbf{Heatmaps}:$
+
+```{r,message=F,warning=F}
+pass_dat <- main_data %>% filter(pass.goal_assist == TRUE & team.name == 'England')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(60, 120)) +
+    scale_y_continuous(limits = c(10,70)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "England Assists") + coord_flip()
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+
+```{r,message=F,warning=F}
+pass_dat <- main_data %>% filter(pass.goal_assist == TRUE & team.name == 'France')
+
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+
+p1 <-
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+  geom_density_2d_filled(data=pass_dat, aes(x=pass.end_location.x,y=pass.end_location.y, fill = ..level..), alpha =0.4,
+                         contour_var = "ndensity",breaks = seq(0.1,1.0,length.out = 10)) + 
+    theme(legend.position = "none") +
+    scale_x_continuous(limits = c(60, 120)) +
+    scale_y_continuous(limits = c(0, 80)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) + 
+    theme(legend.position = "none", 
+    plot.background = element_rect(colour = "gray15", fill = "gray15"),
+    plot.title = element_text(color = "white", hjust = .5, size = 22, family = "Comic Sans MS", face = "bold", vjust = -1),
+    plot.subtitle = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = -4),
+    plot.caption = element_text(color = "white", hjust = .5, size = 10, family = "Comic Sans MS", face = "bold", vjust = 4)) +
+  labs(title = "France Assists") + coord_flip()
+
+ggdraw(p1) + theme(plot.background = element_rect(fill="gray15", color = NA))
+
+
+```
+
+
+# Appendix{#app}
+
+
+```{r}
+table <- table %>% mutate(`total - expected` = total-expected_goals) %>% arrange(desc(`total - expected`))
+head(table)
+tail(table)
+
+```
+
+
+```{r}
+kable(head(final_predictions))
+kable(tail(final_predictions))
+```
+
+# Figures{#fig}
+
+```{r pressure, fig.cap="", out.width = '100%'}
+knitr::include_graphics("messi.webp")
+```
