@@ -10,11 +10,11 @@ This project applies **statistical modeling in R** to analyze team offensive cap
 - Designed a **slideshow presentation** summarizing the research question, models, and results  
 
 ## 🔹 Key Findings
-- **Overperformers**: Portugal (+4.9 goals above xG) and Netherlands (+4.54 goals) scored far more than expected:contentReference[oaicite:2]{index=2}  
-- **Underperformers**: Brazil (–4.01 goals below xG) struggled despite elite attacking talent:contentReference[oaicite:3]{index=3}  
-- **Passing (xP)**: Spain overperformed the most, completing 119 more passes than expected, with heavy midfield concentration:contentReference[oaicite:4]{index=4}  
-- **Assists (xAG)**: France and England were the top overperformers due to clinical finishing from Mbappé and Kane:contentReference[oaicite:5]{index=5}  
-- **Tactical Insight**: Strong midfield play (e.g., Argentina with Messi, Croatia with Modrić) correlates with offensive efficiency:contentReference[oaicite:6]{index=6}  
+- **Overperformers**: Portugal (+4.9 goals above xG) and Netherlands (+4.54 goals) scored far more than expected
+- **Underperformers**: Brazil (–4.01 goals below xG) struggled despite elite attacking talent
+- **Passing (xP)**: Spain overperformed the most, completing 119 more passes than expected, with heavy midfield concentration
+- **Assists (xAG)**: France and England were the top overperformers due to clinical finishing from Mbappé and Kane:content
+- **Tactical Insight**: Strong midfield play (e.g., Argentina with Messi, Croatia with Modrić) correlates with offensive efficiency
 
 ## 🔹 Technologies Used
 - R  
